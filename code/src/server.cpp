@@ -1,12 +1,3 @@
-## 前言
-此为Bakery记录实现第一个Server项目的过程，每一步都有一个分支，且所有的更改新增内容都放在本README中
-
-## day 00
-此项目是在[30dayMakeCppServer](https://github.com/yuesong-feng/30dayMakeCppServer)的教程下进行的，完成README的初始化
-
-## day 01
-实现最简单的C/S
-```cpp
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h> 
@@ -42,25 +33,3 @@ int main() {
     
     return 0;
 }
-```
-```cpp
-#include <sys/socket.h>
-#include <arpa/inet.h>  // 包含了netinet/in.h
-#include <cstring>
-
-int main() {
-    // 创建客户端socket
-    int client_fd = socket(AF_INET, SOCK_STREAM, 0);
-
-    // 配置服务器地址信息
-    struct sockaddr_in server_address;
-    std::memset(&server_address, 0 , sizeof(server_address));
-    server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server_address.sin_port = htons(8888);
-
-    connect(client_fd, (sockaddr*)&server_address, sizeof(server_address));
-
-    return 0;
-}
-```
