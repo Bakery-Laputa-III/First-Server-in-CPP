@@ -5,7 +5,10 @@
 #include <stdio.h>
 #include "../include/util.hpp"
 
-int main() {
+#define BUFFER_SIZE 1024
+
+int main() 
+{
     // 创建客户端socket
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     errif(server_fd == -1, "socket create error");
@@ -21,7 +24,7 @@ int main() {
 
     while (true)
     {
-        char buffer[1024];
+        char buffer[BUFFER_SIZE];
         std::memset(&buffer, 0, sizeof(buffer));
 
         scanf("%s", buffer);
