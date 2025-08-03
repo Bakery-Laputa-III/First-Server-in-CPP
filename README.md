@@ -64,3 +64,75 @@ int main() {
     return 0;
 }
 ```
+## day02
+增加异常抛出功能, 与C/S消息传输功能
+```cpp
+void errif(bool condition, const char* errmsg)
+{
+    if (condition)
+    {
+        perror(errmsg);
+        exit(EXIT_FAILURE);
+    }
+}
+
+```
+```cpp
+int server_listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    errif(server_listen_fd == -1, "socket create error");
+```
+```cpp
+while (true)
+{
+    char buffer[1024];
+    std::memset(&buffer, 0, sizeof(buffer));
+
+    ssize_t read_bytes = read(client_comm_fd, buffer, sizeof(buffer));
+    
+    if (read_bytes > 0)
+    {
+        // 打印从服务端接受的字节
+        printf("message from client fd %d: %s\n", client_comm_fd, buffer);
+        // 将该字节写回服务端
+        write(client_comm_fd, buffer, sizeof(buffer));
+
+    } else if (read_bytes == 0) {
+        printf("client fd %d disconnected\n", client_comm_fd);
+        close(client_comm_fd);
+        break;
+    } else if (read_bytes == -1) {
+        close(client_comm_fd);
+        errif(true, "socket read error");
+    }
+}
+```
+```cpp
+while (true)
+{
+    char buffer[1024];
+    std::memset(&buffer, 0, sizeof(buffer));
+
+    scanf("%s", buffer);
+
+    ssize_t write_bytes = write(server_fd, buffer, sizeof(buffer));
+
+    if (write_bytes == -1)
+    {
+        printf("socket already disconnected, cant write anymore!\n");
+        break;
+    }
+
+    std:memset(&buffer, 0, sizeof(buffer));
+    
+    int read_bytes = read(server_fd, buffer, sizeof(buffer));
+    if (read_bytes > 0)
+    {
+        printf("message from server: %s\n", buffer);
+    } else if (read_bytes == 0) {
+        printf("server socket disconnected!\n");
+    } else if (read_bytes == -1) {
+        close(server_fd);
+        errif(true, "socket read error");
+    }
+}
+```
