@@ -15,6 +15,10 @@ class Socket
 
         int accept(InternetAddress* address);
 
+        void connect(InternetAddress* address);
+
+        void close();
+
         int getFd() const;
 
     private:

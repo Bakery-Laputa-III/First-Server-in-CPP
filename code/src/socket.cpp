@@ -19,8 +19,7 @@ Socket::~Socket()
 {
     if (fd != -1)
     {
-        close(fd);
-        fd = -1;
+        this->close();
     }
 }
 
@@ -44,6 +43,19 @@ int Socket::accept(InternetAddress* theAdress)
     int clientFd = ::accept(fd, (sockaddr*)&theAdress->address, &theAdress->length);
     errif(clientFd == -1, "socket accept error");
     return clientFd;
+}
+
+void Socket::connect(InternetAddress* theAddress)
+{
+    int ret = ::connect(fd, (sockaddr*)&(theAddress->address), theAddress->length);
+    errif(ret == -1, "socket connect error");
+}
+
+void Socket::close()
+{
+    errif(fd == -1, "socket close error");
+    ::close(fd);
+    fd = -1;
 }
 
 int Socket::getFd() const

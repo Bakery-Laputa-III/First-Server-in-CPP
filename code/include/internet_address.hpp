@@ -5,7 +5,7 @@ class InternetAddress
 {
     public:
         InternetAddress();
-        InternetAddress(char* ip, uint16_t port);
+        InternetAddress(const char* ip, uint16_t port);
         ~InternetAddress();
         
     public:

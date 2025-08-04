@@ -15,4 +15,4 @@ class Epoll
     private:
         int fd;
         struct epoll_event *events;
-}
+};

@@ -4,12 +4,12 @@
 #include <string>
 #include <cstring>
 
-InternetAddress::InternetAddress() : addressLength(sizeof(address))
+InternetAddress::InternetAddress() : length(sizeof(address))
 {
     std::memset(&address, 0 ,sizeof(address));
 }
 
-InternetAddress::InternetAddress(char* ip, uint16_t port) : addressLength(sizeof(address))
+InternetAddress::InternetAddress(const char* ip, uint16_t port) : length(sizeof(address))
 {
     std::memset(&address, 0 ,sizeof(address));
     address.sin_family = AF_INET;
