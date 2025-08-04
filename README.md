@@ -236,3 +236,229 @@ while (true)
     }
 }
 ```
+
+## day04
+封装address, socket, epoll, handle, util, 重构C/S
+```cpp
+#pragma once
+#include <arpa/inet.h>
+
+class InternetAddress
+{
+    public:
+        InternetAddress();
+        InternetAddress(const char* ip, uint16_t port);
+        ~InternetAddress();
+        
+    public:
+        struct sockaddr_in address;
+        socklen_t length;
+};
+```
+```cpp
+#pragma once
+
+#include "./internet_address.hpp"
+
+class Socket
+{
+    public:
+        Socket();
+        Socket(int);
+        ~Socket();
+
+        void bind(InternetAddress* address);
+        void listen();
+        void setNonBlocking();
+
+        int accept(InternetAddress* address);
+
+        void connect(InternetAddress* address);
+
+        void close();
+
+        int getFd() const;
+
+    private:
+        int fd;
+};
+```
+```cpp
+#pragma once
+
+#include <sys/epoll.h>
+#include <vector>
+
+class Epoll
+{
+    public:
+        Epoll();
+        ~Epoll();
+
+        void addFd(int fd, uint32_t op);
+        std::vector<epoll_event> poll(int timeout = -1);
+
+    private:
+        int fd;
+        struct epoll_event *events;
+};
+```
+```cpp
+#pragma once
+
+void handleReadEvent(int fd);
+```
+```cpp
+#ifndef UTIL_HPP
+#define UTIL_HPP
+
+void errif(bool, const char*);
+
+#endif
+```
+```cpp
+#include "../include/socket.hpp"
+#include "../include/internet_address.hpp"
+#include "../include/epoll.hpp"
+#include "../include/handle.hpp"
+#include <vector>
+#include <sys/epoll.h>
+#include <arpa/inet.h>
+#include <iostream>
+
+#define SERVER_LISTEN_IP "127.0.0.1"
+#define SERVER_LISTEN_PORT 8888
+
+int main()
+{
+    // 创建监听套接字
+    Socket *listenSocket = new Socket();
+    // 配置服务器监听地址端口
+    InternetAddress *listenAdress = new InternetAddress(SERVER_LISTEN_IP, SERVER_LISTEN_PORT);
+    // 用监听套接字监听该地址端口
+    listenSocket->bind(listenAdress);
+    // 开启监听
+    listenSocket->listen();
+
+    // 创建epoll管理
+    Epoll *serverEpoll = new Epoll();
+
+    // 将监听套接字设置为非阻塞模式,且加入epoll管理
+    listenSocket->setNonBlocking();
+    serverEpoll->addFd(listenSocket->getFd(), EPOLLIN | EPOLLET);
+
+    // 事件处理
+    while (true)
+    {
+        // 在epoll中poll出事件
+        std::vector<epoll_event> epollEvents = serverEpoll->poll();
+        int numFds = epollEvents.size();
+
+        // 事件处理
+        for (int i = 0; i < numFds; i++)
+        {
+            // 新连接事件
+            if (epollEvents[i].data.fd == listenSocket->getFd())
+            {
+                // 无delete,内存会发生泄露!
+                InternetAddress *clientAddress = new InternetAddress();
+                Socket *clientSocket = new Socket(listenSocket->accept(clientAddress));
+
+                // 打印clientsocket的ip与port
+                std::cout << "new client fd " << clientSocket->getFd() <<"!" << " IP: " << inet_ntoa(clientAddress->address.sin_addr) << " Port: " << ntohs(clientAddress->address.sin_port) << std::endl;
+                
+                // 将clientsocket设置成非阻塞模式且加入epoll中
+                clientSocket->setNonBlocking();
+                serverEpoll->addFd(clientSocket->getFd(), EPOLLIN | EPOLLET);
+            }
+            // 可读事件
+            else if (epollEvents[i].events & EPOLLIN)
+            {
+                // 处理读取事件
+                handleReadEvent(epollEvents[i].data.fd);
+            }
+            // 其他事件(未开发)
+            else 
+            {
+                std::cout << "something unexpected happened!\n";
+            }
+        }
+    }   
+
+    // 删除堆建变量
+    delete listenSocket;
+    delete listenAdress;
+    delete serverEpoll;
+
+    return 0;
+}
+```
+```cpp
+#include "../include/socket.hpp"
+#include "../include/internet_address.hpp"
+#include "../include/util.hpp"
+#include <unistd.h>
+#include <iostream>
+#include <cstring>
+
+#define SERVER_IP "127.0.0.1"
+#define SERVER_PORT 8888
+#define BUFFER_SIZE 1024
+
+int main() 
+{
+    // 创建客户端socket
+    Socket *serverSocket = new Socket();
+    
+    // 配置服务器地址信息
+    InternetAddress *serverAddress = new InternetAddress(SERVER_IP, SERVER_PORT);
+
+    // 连接服务器
+    serverSocket->connect(serverAddress);
+
+    std::cout << "Connected to server at " << SERVER_IP << ":" << SERVER_PORT << std::endl;
+
+    while (true)
+    {
+        char buffer[BUFFER_SIZE];
+        std::memset(buffer, 0, sizeof(buffer));
+
+        // 获取用户输入
+        std::cout << "Enter message: ";
+        std::cin.getline(buffer, sizeof(buffer));
+
+        // 发送数据
+        ssize_t writeBytes = write(serverSocket->getFd(), buffer, sizeof(buffer));
+        if (writeBytes == -1)
+        {
+            std::cerr << "Socket already disconnected, can't write anymore!" << std::endl;
+            break;
+        }
+
+        // 接收服务器响应
+        std::memset(buffer, 0, sizeof(buffer));
+        ssize_t readBytes = read(serverSocket->getFd(), buffer, sizeof(buffer));
+        
+        if (readBytes > 0)
+        {
+            std::cout << "Message from server: " << buffer << std::endl;
+        }
+        else if (readBytes == 0)
+        {
+            std::cout << "Server disconnected!" << std::endl;
+            break;
+        }
+        else if (readBytes == -1)
+        {
+            serverSocket->close();
+            errif(true, "socket read error");
+        }
+    }
+
+    // 清理资源
+    delete serverSocket;
+    delete serverAddress;
+    
+    return 0;
+}
+```
