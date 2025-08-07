@@ -1,4 +1,5 @@
 #include "../include/epoll.hpp"
+#include "../include/channel.hpp"
 #include "../include/util.hpp"
 #include <sys/epoll.h>
 #include <unistd.h>
@@ -37,12 +38,38 @@ void Epoll::addFd(int theFd, uint32_t op)
     errif(epoll_ctl(fd, EPOLL_CTL_ADD, theFd, &evt) == -1, "epoll add error");
 }
 
-std::vector<epoll_event> Epoll::poll(int timeout)
+void Epoll::updateChannel(Channel *theChannel)
 {
-    std::vector<epoll_event> activeEvents;
+    // 拷贝Channel信息
+    int theFd = theChannel->getFd();
+    struct epoll_event evt;
+    std::memset(&evt, 0, sizeof(evt));
+    evt.data.ptr = theChannel;
+    evt.events = theChannel->getEvents();
+
+    // 更新Channel
+    if(theChannel->getInEpoll())
+    {
+        errif(epoll_ctl(fd, EPOLL_CTL_MOD, theFd, &evt) == -1, "epoll mod error");
+    }
+    else
+    {
+        errif(epoll_ctl(fd, EPOLL_CTL_ADD, theFd, &evt) == -1, "epoll add error");
+        theChannel->setInEpoll();
+    }
+}
+
+std::vector<Channel*> Epoll::poll(int timeout)
+{
+    std::vector<Channel*> activeChannels;
     int nfds = epoll_wait(fd, events, EVENT_SIZE, timeout);
     errif(nfds == -1, "epoll wait error");
-    for (int i = 0; i < nfds; i++) activeEvents.push_back(events[i]);
-    return activeEvents;
+    for (int i = 0; i < nfds; i++) 
+    {
+        Channel *ch = (Channel*) events[i].data.ptr;
+        ch->setRevents(events[i].events);
+        activeChannels.push_back(ch);
+    }
+    return activeChannels;
 }
 

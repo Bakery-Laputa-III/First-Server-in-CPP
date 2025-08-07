@@ -18,7 +18,7 @@ void handleReadEvent(int fd)
         if (readBytes > 0)
         {
             std::cout << "message from client fd " << fd << ": " << buffer << std::endl;
-            write(fd, buffer, sizeof(buffer));
+            write(fd, buffer, readBytes);
         }
         // 客户正常终端,继续读取
         else if (readBytes == -1 && errno == EINTR)

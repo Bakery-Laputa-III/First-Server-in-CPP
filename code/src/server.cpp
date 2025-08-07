@@ -2,6 +2,7 @@
 #include "../include/internet_address.hpp"
 #include "../include/epoll.hpp"
 #include "../include/handle.hpp"
+#include "../include/channel.hpp"
 #include <vector>
 #include <sys/epoll.h>
 #include <arpa/inet.h>
@@ -24,22 +25,24 @@ int main()
     // 创建epoll管理
     Epoll *serverEpoll = new Epoll();
 
-    // 将监听套接字设置为非阻塞模式,且加入epoll管理
+    // 将监听套接字设置为非阻塞模式,创建监听channel(设置为RAED)
     listenSocket->setNonBlocking();
-    serverEpoll->addFd(listenSocket->getFd(), EPOLLIN | EPOLLET);
+    Channel* listenChannel = new Channel(serverEpoll, listenSocket->getFd());
+    listenChannel->enableReading();
 
     // 事件处理
     while (true)
     {
         // 在epoll中poll出事件
-        std::vector<epoll_event> epollEvents = serverEpoll->poll();
-        int numFds = epollEvents.size();
+        std::vector<Channel*> activeChannels = serverEpoll->poll();
+        int numFds = activeChannels.size();
 
         // 事件处理
         for (int i = 0; i < numFds; i++)
         {
-            // 新连接事件
-            if (epollEvents[i].data.fd == listenSocket->getFd())
+            int channelFd = activeChannels[i]->getFd();
+            // 新连接channel
+            if (channelFd == listenSocket->getFd())
             {
                 // 无delete,内存会发生泄露!
                 InternetAddress *clientAddress = new InternetAddress();
@@ -48,15 +51,16 @@ int main()
                 // 打印clientsocket的ip与port
                 std::cout << "new client fd " << clientSocket->getFd() <<"!" << " IP: " << inet_ntoa(clientAddress->address.sin_addr) << " Port: " << ntohs(clientAddress->address.sin_port) << std::endl;
                 
-                // 将clientsocket设置成非阻塞模式且加入epoll中
+                // 将clientsocket设置成非阻塞模式, 创建clientChannel
                 clientSocket->setNonBlocking();
-                serverEpoll->addFd(clientSocket->getFd(), EPOLLIN | EPOLLET);
+                Channel *clientChannel = new Channel(serverEpoll,  clientSocket->getFd());
+                clientChannel->enableReading();
             }
             // 可读事件
-            else if (epollEvents[i].events & EPOLLIN)
+            else if (activeChannels[i]->getRevents() & EPOLLIN)
             {
                 // 处理读取事件
-                handleReadEvent(epollEvents[i].data.fd);
+                handleReadEvent(channelFd);
             }
             // 其他事件(未开发)
             else 
