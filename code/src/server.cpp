@@ -1,17 +1,19 @@
-#include "../include/socket.hpp"
-#include "../include/internet_address.hpp"
-#include "../include/epoll.hpp"
-#include "../include/handle.hpp"
-#include "../include/channel.hpp"
-#include <vector>
-#include <sys/epoll.h>
-#include <arpa/inet.h>
+#include "socket.hpp"
+#include "internet_address.hpp"
+#include "server.hpp"
+#include "event_loop.hpp"
+#include "channel.hpp"
+
+#include <functional>
+#include <cstring>
 #include <iostream>
+#include <unistd.h>
 
 #define SERVER_LISTEN_IP "127.0.0.1"
 #define SERVER_LISTEN_PORT 8888
+#define READ_BUFFER 1024
 
-int main()
+Server::Server(EventLoop *theLoop) : loop(theLoop)
 {
     // 创建监听套接字
     Socket *listenSocket = new Socket();
@@ -21,59 +23,68 @@ int main()
     listenSocket->bind(listenAdress);
     // 开启监听
     listenSocket->listen();
-
-    // 创建epoll管理
-    Epoll *serverEpoll = new Epoll();
-
-    // 将监听套接字设置为非阻塞模式,创建监听channel(设置为RAED)
+    // 将监听套接字设置为非阻塞模式
     listenSocket->setNonBlocking();
-    Channel* listenChannel = new Channel(serverEpoll, listenSocket->getFd());
-    listenChannel->enableReading();
 
-    // 事件处理
+    Channel* listenChannel = new Channel(loop, listenSocket->getFd());
+    std::function<void()> callBack = std::bind(&Server::newConnection, this, listenSocket);
+    
+    listenChannel->setCallBack(callBack);
+    listenChannel->enableReading();
+} 
+
+Server::~Server() { }
+
+void Server::handleReadEvent(int fd)
+{
+    char buffer[READ_BUFFER];
+
+    // socketFd为非阻塞IO
     while (true)
     {
-        // 在epoll中poll出事件
-        std::vector<Channel*> activeChannels = serverEpoll->poll();
-        int numFds = activeChannels.size();
-
-        // 事件处理
-        for (int i = 0; i < numFds; i++)
+        std::memset(buffer, 0, sizeof(buffer));
+        ssize_t readBytes = read(fd, buffer, sizeof(buffer));
+        // 读到内容
+        if (readBytes > 0)
         {
-            int channelFd = activeChannels[i]->getFd();
-            // 新连接channel
-            if (channelFd == listenSocket->getFd())
-            {
-                // 无delete,内存会发生泄露!
-                InternetAddress *clientAddress = new InternetAddress();
-                Socket *clientSocket = new Socket(listenSocket->accept(clientAddress));
-
-                // 打印clientsocket的ip与port
-                std::cout << "new client fd " << clientSocket->getFd() <<"!" << " IP: " << inet_ntoa(clientAddress->address.sin_addr) << " Port: " << ntohs(clientAddress->address.sin_port) << std::endl;
-                
-                // 将clientsocket设置成非阻塞模式, 创建clientChannel
-                clientSocket->setNonBlocking();
-                Channel *clientChannel = new Channel(serverEpoll,  clientSocket->getFd());
-                clientChannel->enableReading();
-            }
-            // 可读事件
-            else if (activeChannels[i]->getRevents() & EPOLLIN)
-            {
-                // 处理读取事件
-                handleReadEvent(channelFd);
-            }
-            // 其他事件(未开发)
-            else 
-            {
-                std::cout << "something unexpected happened!\n";
-            }
+            std::cout << "message from client fd " << fd << ": " << buffer << std::endl;
+            write(fd, buffer, readBytes);
         }
-    }   
+        // 客户正常终端,继续读取
+        else if (readBytes == -1 && errno == EINTR)
+        {
+            std::cout << "continue reading";
+            continue;
+        }
+        // 读取完毕
+        else if (readBytes == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK)))
+        {
+            std::cout << "finish reading once, errno: " << errno << std::endl;
+            break;
+        }
+        // EOF,客户端断开连接
+        else if (readBytes == 0)
+        {
+            std::cout << "EOF, client fd " << fd << " disconnected!" << std::endl;
+            close(fd);
+            break;
+        }
+    }
+}
 
-    // 删除堆建变量
-    delete listenSocket;
-    delete listenAdress;
-    delete serverEpoll;
+void Server::newConnection(Socket *listenSocket)
+{
+    // 无delete,内存会发生泄露!
+    InternetAddress *clientAddress = new InternetAddress();
+    Socket *clientSocket = new Socket(listenSocket->accept(clientAddress));
 
-    return 0;
+    // 打印clientsocket的ip与port
+    std::cout << "new client fd " << clientSocket->getFd() <<"!" << " IP: " << inet_ntoa(clientAddress->address.sin_addr) << " Port: " << ntohs(clientAddress->address.sin_port) << std::endl;
+    
+    // 将clientsocket设置成非阻塞模式, 创建clientChannel
+    clientSocket->setNonBlocking();
+    Channel *clientChannel = new Channel(loop,  clientSocket->getFd());
+    std::function<void()> callBack = std::bind(&Server::handleReadEvent, this, clientSocket->getFd());
+    clientChannel->setCallBack(callBack);
+    clientChannel->enableReading();
 }

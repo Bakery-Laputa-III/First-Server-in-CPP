@@ -1,14 +1,14 @@
-# 超简洁版 Makefile (修复版)
+# 完整的 Makefile
 CXX := g++
-CXXFLAGS := -std=c++11 -Wall -Iinclude
+CXXFLAGS := -std=c++11 -Wall -g -Isrc
 
-all: server client
+all: my_server my_client
 
-server: src/server.cpp src/socket.cpp src/internet_address.cpp src/epoll.cpp src/handle.cpp src/util.cpp src/channel.cpp
+my_server: my_server.cpp src/server.cpp src/socket.cpp src/internet_address.cpp src/epoll.cpp src/handle.cpp src/util.cpp src/channel.cpp src/event_loop.cpp
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-client: src/client.cpp src/socket.cpp src/internet_address.cpp src/util.cpp
+my_client: my_client.cpp src/socket.cpp src/internet_address.cpp src/util.cpp
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 clean:
-	rm -f server client
+	rm -f my_server my_client *.o

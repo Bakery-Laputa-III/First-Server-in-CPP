@@ -1,6 +1,6 @@
-#include "../include/socket.hpp"
-#include "../include/internet_address.hpp"
-#include "../include/util.hpp"
+#include "src/socket.hpp"
+#include "src/internet_address.hpp"
+#include "src/util.hpp"
 #include <unistd.h>
 #include <iostream>
 #include <cstring>

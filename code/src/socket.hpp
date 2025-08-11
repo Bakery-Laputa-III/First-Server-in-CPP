@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./internet_address.hpp"
+class InternetAddress;
 
 class Socket
 {
