@@ -24,7 +24,7 @@ void Channel::handleEvent()
 
 void Channel::enableReading()
 {
-    events = EPOLLIN | EPOLLET;
+    events |= EPOLLIN | EPOLLET;
     loop->updateChannel(this);
 }
 
