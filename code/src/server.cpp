@@ -1,39 +1,28 @@
+#include "acceptor.hpp"
 #include "socket.hpp"
 #include "internet_address.hpp"
 #include "server.hpp"
 #include "event_loop.hpp"
 #include "channel.hpp"
+#include "acceptor.hpp"
 
 #include <functional>
 #include <cstring>
 #include <iostream>
 #include <unistd.h>
 
-#define SERVER_LISTEN_IP "127.0.0.1"
-#define SERVER_LISTEN_PORT 8888
 #define READ_BUFFER 1024
 
-Server::Server(EventLoop *theLoop) : loop(theLoop)
+Server::Server(EventLoop *theLoop) : loop(theLoop), acceptor(nullptr)
 {
-    // 创建监听套接字
-    Socket *listenSocket = new Socket();
-    // 配置服务器监听地址端口
-    InternetAddress *listenAdress = new InternetAddress(SERVER_LISTEN_IP, SERVER_LISTEN_PORT);
-    // 用监听套接字监听该地址端口
-    listenSocket->bind(listenAdress);
-    // 开启监听
-    listenSocket->listen();
-    // 将监听套接字设置为非阻塞模式
-    listenSocket->setNonBlocking();
+    acceptor = new Acceptor(loop);
+}
+ 
 
-    Channel* listenChannel = new Channel(loop, listenSocket->getFd());
-    std::function<void()> callBack = std::bind(&Server::newConnection, this, listenSocket);
-    
-    listenChannel->setCallBack(callBack);
-    listenChannel->enableReading();
-} 
-
-Server::~Server() { }
+Server::~Server() 
+{ 
+    delete acceptor;
+}
 
 void Server::handleReadEvent(int fd)
 {

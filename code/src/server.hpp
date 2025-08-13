@@ -2,6 +2,8 @@
 
 class EventLoop;
 class Socket;
+class Acceptor;
+
 class Server
 {
     public:
@@ -12,4 +14,5 @@ class Server
         void handleReadEvent(int fd);
     private:
         EventLoop *loop;
+        Acceptor *acceptor;
 };
