@@ -8,5 +8,8 @@ int main()
     
     loop->loop();
 
+    delete server;
+    delete loop;
+
     return 0;
 }

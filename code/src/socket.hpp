@@ -9,11 +9,12 @@ class Socket
         Socket(int theFd);
         ~Socket();
 
-        void bind(InternetAddress* address);
+        void bind(InternetAddress *address);
         void listen();
         void setNonBlocking();
 
-        int accept(InternetAddress* address);
+        int accept(InternetAddress *address);
+        void connect(InternetAddress *address);
 
         int getFd() const;
 

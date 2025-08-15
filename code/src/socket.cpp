@@ -1,6 +1,7 @@
 #include "socket.hpp"
 #include "internet_address.hpp"
 #include "util.hpp"
+#include <climits>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <fcntl.h>
@@ -55,6 +56,13 @@ int Socket::accept(InternetAddress *theAdress)
 
     theAdress->setInternetAddress(address, length);    
     return clientFd;
+}
+
+void Socket::connect(InternetAddress *address)
+{
+    struct sockaddr_in addr = address->getAddress();
+    socklen_t len = address->getAddressLength();
+    errif(::connect(fd, (sockaddr*)&addr, len) == -1, "socket connect error");
 }
 
 int Socket::getFd() const

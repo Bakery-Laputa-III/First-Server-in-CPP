@@ -1,9 +1,11 @@
 #pragma once
 
 #include <functional>
+#include <string>
 
 class EventLoop;
 class Socket;
+class Buffer;
 class Channel;
 
 class Connection
@@ -18,6 +20,8 @@ class Connection
     private:
         EventLoop *loop;
         Socket *socket;
+        Buffer *readBuffer;
+        std::string *inBuffer;
         Channel *channel;
         std::function<void(Socket*)> deleteConnectionCallBack;
 };

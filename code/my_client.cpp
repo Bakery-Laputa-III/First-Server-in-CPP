@@ -1,73 +1,76 @@
+#include "src/buffer.hpp"
 #include "src/socket.hpp"
 #include "src/internet_address.hpp"
-#include "src/util.hpp"
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
+#include <cstdlib>
 #include <iostream>
+#include <sys/types.h>
+#include <unistd.h>
 #include <cstring>
 
 #define SERVER_IP "127.0.0.1"
 #define SERVER_PORT 8888
-#define BUFFER_SIZE 1000
 
 int main() 
 {
-    // 创建客户端socket
-    Socket *serverSocket = new Socket();
-    
-    // 配置服务器地址信息
-    struct sockaddr_in address;
-    std::memset(&address, 0 ,sizeof(address));
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = inet_addr(SERVER_IP);
-    address.sin_port = htons(SERVER_PORT);
+    // 创建套接字
+    Socket *sock = new Socket();
 
-    // 连接服务器
-    errif(connect(serverSocket->getFd(), (sockaddr*)&address, sizeof(address)) == -1, "socket connect error!");
+    // 创建服务器地址
+    InternetAddress *server_addr = new InternetAddress(SERVER_IP, SERVER_PORT);
 
-    std::cout << "Connected to server at " << SERVER_IP << ":" << SERVER_PORT << std::endl;
+    // 连接
+    sock->connect(server_addr);
+
+    int sockfd = sock->getFd();
+
+    Buffer *send_buf = new Buffer();
+    Buffer *read_buf = new Buffer();
 
     while (true)
     {
-        char buffer[BUFFER_SIZE];
-        std::memset(buffer, 0, sizeof(buffer));
+        send_buf->getline();
 
-        // 获取用户输入
-        std::cout << "Enter message: ";
-        std::cin.getline(buffer, sizeof(buffer));
+        ssize_t write_bytes = write(sockfd, send_buf->c_str(), send_buf->size());
 
-        // 发送数据
-        ssize_t writeBytes = write(serverSocket->getFd(), buffer, sizeof(buffer));
-        if (writeBytes == -1)
+        if (write_bytes == -1)
         {
-            std::cerr << "Socket already disconnected, can't write anymore!" << std::endl;
+            std::cout << "socket already disconnected, can't write anymore!\n";
             break;
         }
 
-        // 接收服务器响应
-        std::memset(buffer, 0, sizeof(buffer));
-        ssize_t readBytes = read(serverSocket->getFd(), buffer, sizeof(buffer));
-        
-        if (readBytes > 0)
+        int already_read = 0;
+        char buffer[1024];
+
+        while (true)
         {
-            std::cout << "Message from server: " << buffer << std::endl;
+            std::memset(buffer, 0 ,sizeof(buffer));
+            ssize_t read_bytes = read(sockfd, buffer, sizeof(buffer));
+
+            if (read_bytes > 0)
+            {
+                read_buf->append(buffer, read_bytes);
+                already_read += read_bytes;
+            }
+            else if (read_bytes == 0)
+            {
+                std::cout << "server disconnected!\n";
+                exit(EXIT_SUCCESS);
+            }
+
+            if (already_read >= send_buf->size())
+            {
+                std::cout << "message from server: " << read_buf->c_str() << std::endl;
+                break;
+            }
         }
-        else if (readBytes == 0)
-        {
-            std::cout << "Server disconnected!" << std::endl;
-            break;
-        }
-        else if (readBytes == -1)
-        {
-            serverSocket->close();
-            errif(true, "socket read error");
-        }
+
+        read_buf->clear();
     }
-    
-    serverSocket->close();  
-    // 清理资源
-    delete serverSocket;
-    
+
+    delete sock;
+    delete server_addr;
+    delete read_buf;
+    delete  send_buf;
+
     return 0;
 }
