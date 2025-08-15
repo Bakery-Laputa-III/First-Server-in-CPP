@@ -1,13 +1,15 @@
 #include "src/socket.hpp"
 #include "src/internet_address.hpp"
 #include "src/util.hpp"
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
 
 #define SERVER_IP "127.0.0.1"
 #define SERVER_PORT 8888
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 1000
 
 int main() 
 {
@@ -15,10 +17,14 @@ int main()
     Socket *serverSocket = new Socket();
     
     // 配置服务器地址信息
-    InternetAddress *serverAddress = new InternetAddress(SERVER_IP, SERVER_PORT);
+    struct sockaddr_in address;
+    std::memset(&address, 0 ,sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = inet_addr(SERVER_IP);
+    address.sin_port = htons(SERVER_PORT);
 
     // 连接服务器
-    serverSocket->connect(serverAddress);
+    errif(connect(serverSocket->getFd(), (sockaddr*)&address, sizeof(address)) == -1, "socket connect error!");
 
     std::cout << "Connected to server at " << SERVER_IP << ":" << SERVER_PORT << std::endl;
 
@@ -58,10 +64,10 @@ int main()
             errif(true, "socket read error");
         }
     }
-
+    
+    serverSocket->close();  
     // 清理资源
     delete serverSocket;
-    delete serverAddress;
     
     return 0;
 }

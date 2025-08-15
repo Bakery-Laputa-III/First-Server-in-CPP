@@ -1,6 +1,8 @@
 #include "internet_address.hpp" 
 #include <arpa/inet.h> 
 #include <cstring>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 InternetAddress::InternetAddress() : length(sizeof(address))
 {
@@ -16,3 +18,13 @@ InternetAddress::InternetAddress(const char* ip, uint16_t port) : length(sizeof(
 }
 
 InternetAddress::~InternetAddress() {}
+
+void InternetAddress::setInternetAddress(sockaddr_in theAddress, socklen_t theAddressLength)
+{
+    address = theAddress;
+    length = theAddressLength;
+}
+
+sockaddr_in InternetAddress::getAddress() const { return address; }
+
+socklen_t InternetAddress::getAddressLength() const { return length; }

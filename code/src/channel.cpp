@@ -2,10 +2,17 @@
 #include "event_loop.hpp"
 #include <sys/epoll.h>
 #include <functional>
+#include <unistd.h>
 
 Channel::Channel(EventLoop *theLoop, int theFd) : loop(theLoop), fd(theFd) {}
 
-Channel::~Channel() {}
+Channel::~Channel() 
+{
+    if(fd != -1)
+    {
+        close(fd);
+    }
+}
 
 int Channel::getFd() const { return fd; }
 

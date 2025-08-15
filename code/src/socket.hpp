@@ -6,7 +6,7 @@ class Socket
 {
     public:
         Socket();
-        Socket(int);
+        Socket(int theFd);
         ~Socket();
 
         void bind(InternetAddress* address);
@@ -15,11 +15,9 @@ class Socket
 
         int accept(InternetAddress* address);
 
-        void connect(InternetAddress* address);
+        int getFd() const;
 
         void close();
-
-        int getFd() const;
 
     private:
         int fd;

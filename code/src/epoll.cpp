@@ -12,7 +12,7 @@ Epoll::Epoll() : fd(-1), events(nullptr)
     fd = ::epoll_create1(0);
     errif(fd == -1, "epoll create error");
     events = new epoll_event[EVENT_SIZE];
-    std::memset(events, 0, sizeof(events) * EVENT_SIZE);
+    std::memset(events, 0, sizeof(*events) * EVENT_SIZE);
 }
 
 Epoll::~Epoll()
@@ -26,7 +26,8 @@ Epoll::~Epoll()
     delete[] events;
 }
 
-void Epoll::addFd(int theFd, uint32_t op)
+
+/* void Epoll::addFd(int theFd, uint32_t op)
 {
     struct epoll_event evt;
     std::memset(&evt, 0, sizeof(evt));
@@ -36,7 +37,7 @@ void Epoll::addFd(int theFd, uint32_t op)
 
     // 事件加入epoll中
     errif(epoll_ctl(fd, EPOLL_CTL_ADD, theFd, &evt) == -1, "epoll add error");
-}
+} */
 
 void Epoll::updateChannel(Channel *theChannel)
 {
